@@ -1,0 +1,146 @@
+@import "tailwindcss";
+
+:root {
+  --void: #000000;
+  --bone: #ece9e2;
+  --ash: #8c8a84;
+  --phosphor: #ffb000;
+
+  /* shadcn/ui tokens mapped onto the palette, so anything added with the CLI matches */
+  --background: var(--void);
+  --foreground: var(--bone);
+  --card: var(--void);
+  --card-foreground: var(--bone);
+  --popover: #0d0d0c;
+  --popover-foreground: var(--bone);
+  --primary: var(--bone);
+  --primary-foreground: var(--void);
+  --secondary: #1a1a19;
+  --secondary-foreground: var(--bone);
+  --muted: #1a1a19;
+  --muted-foreground: var(--ash);
+  --accent: var(--phosphor);
+  --accent-foreground: var(--void);
+  --destructive: #ff5a4a;
+  --border: rgb(236 233 226 / 0.16);
+  --input: rgb(236 233 226 / 0.24);
+  --ring: var(--phosphor);
+  --radius: 0rem;
+}
+
+@theme inline {
+  --color-void: var(--void);
+  --color-bone: var(--bone);
+  --color-ash: var(--ash);
+  --color-phosphor: var(--phosphor);
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --radius-sm: var(--radius);
+  --radius-md: var(--radius);
+  --radius-lg: var(--radius);
+
+  --font-mono: var(--font-plex), ui-monospace, SFMono-Regular, Menlo, monospace;
+  --font-display: var(--font-vt), var(--font-plex), ui-monospace, monospace;
+}
+
+@layer base {
+  html {
+    color-scheme: dark;
+    scroll-behavior: smooth;
+    scroll-padding-top: 4rem;
+  }
+  body {
+    background: var(--void);
+    color: var(--bone);
+    font-feature-settings: "zero" 1;
+  }
+  ::selection {
+    background: var(--phosphor);
+    color: var(--void);
+  }
+  :focus-visible {
+    outline: 1px solid var(--phosphor);
+    outline-offset: 3px;
+  }
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+@layer components {
+  /* Severity fills: solid = critical, checkerboard = high, sparse dots = medium */
+  .dither-full {
+    background-color: currentColor;
+  }
+  .dither-half {
+    background-image: repeating-conic-gradient(currentColor 0 25%, transparent 0 50%);
+    background-size: 2px 2px;
+  }
+  .dither-sparse {
+    background-image: linear-gradient(90deg, currentColor 1px, transparent 1px);
+    background-size: 2px 2px;
+    -webkit-mask-image: linear-gradient(#000 1px, transparent 1px);
+    mask-image: linear-gradient(#000 1px, transparent 1px);
+    -webkit-mask-size: 2px 2px;
+    mask-size: 2px 2px;
+  }
+  /* Splits a CVSS bar into ten one-point segments */
+  .cvss-ticks {
+    background-image: repeating-linear-gradient(90deg, transparent 0 calc(10% - 1px), var(--void) calc(10% - 1px) 10%);
+  }
+  .redact {
+    display: inline-block;
+    height: 0.9em;
+    vertical-align: -0.12em;
+    background: rgb(236 233 226 / 0.8);
+  }
+  .scanlines {
+    background: repeating-linear-gradient(to bottom, rgb(236 233 226 / 0.022) 0 1px, transparent 1px 3px);
+  }
+  .meter-bar {
+    transform-origin: bottom;
+    animation: meter 1.4s ease-in-out infinite;
+  }
+}
+
+@keyframes meter {
+  0%,
+  100% {
+    transform: scaleY(0.35);
+  }
+  50% {
+    transform: scaleY(1);
+  }
+}
