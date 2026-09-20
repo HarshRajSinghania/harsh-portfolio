@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { motion, type Variants } from "framer-motion";
 import { ArrowDown, Download } from "lucide-react";
 import { AsciiField } from "@/components/ui/ascii-field";
+import { GlitchMask } from "@/components/ui/glitch-mask";
 import { ScrambleText } from "@/components/ui/scramble-text";
 import { cves, profile, severityCounts } from "@/lib/data";
 import { ditherClass } from "@/lib/severity";
@@ -22,7 +23,7 @@ const item: Variants = {
 const METER = [6, 10, 4, 12, 8, 14, 5, 9];
 
 const buttonClass =
-  "group relative inline-flex items-center justify-center gap-2 border border-bone px-5 py-2.5 text-xs text-bone transition-colors duration-200 hover:border-phosphor hover:bg-phosphor hover:text-black lg:px-6 lg:text-sm";
+  "group relative inline-flex items-center justify-center gap-2 border border-bone px-5 py-2.5 text-xs text-bone transition-colors duration-200 hover:border-phosphor hover:bg-phosphor hover:text-void lg:px-6 lg:text-sm";
 
 function useIstClock() {
   const [time, setTime] = useState("--:--:--");
@@ -61,14 +62,14 @@ export default function HeroAsciiOne() {
   const severityLabel = `${cves.length} CVEs: ${severityCounts.critical} critical, ${severityCounts.high} high, ${severityCounts.medium} medium`;
 
   return (
-    <section id="top" aria-labelledby="hero-title" className="relative min-h-[100svh] overflow-hidden bg-black pt-14">
+    <section id="top" aria-labelledby="hero-title" className="relative min-h-[100svh] overflow-hidden bg-void pt-14">
       <div className="absolute inset-0">
         <AsciiField onFrame={onFrame} />
       </div>
 
       {/* Legibility scrims behind the copy */}
-      <div aria-hidden="true" className="pointer-events-none absolute inset-y-0 right-0 hidden w-[62%] bg-linear-to-l from-black via-black/85 to-transparent lg:block" />
-      <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 bottom-0 h-[72%] bg-linear-to-t from-black via-black/85 to-transparent lg:hidden" />
+      <div aria-hidden="true" className="pointer-events-none absolute inset-y-0 right-0 hidden w-[62%] bg-linear-to-l from-void via-void/85 to-transparent lg:block" />
+      <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 bottom-0 h-[72%] bg-linear-to-t from-void via-void/85 to-transparent lg:hidden" />
 
       {/* Frame corners */}
       <span aria-hidden="true" className="absolute left-0 top-14 z-20 size-8 border-l-2 border-t-2 border-bone/30 lg:size-12" />
@@ -76,7 +77,16 @@ export default function HeroAsciiOne() {
       <span aria-hidden="true" className="absolute bottom-10 left-0 z-20 size-8 border-b-2 border-l-2 border-bone/30 lg:size-12" />
       <span aria-hidden="true" className="absolute bottom-10 right-0 z-20 size-8 border-b-2 border-r-2 border-bone/30 lg:size-12" />
 
-      <div className="relative z-10 flex min-h-[calc(100svh-3.5rem)] items-end justify-end pb-24 lg:items-center lg:pb-16">
+      <div className="relative z-10 flex min-h-[calc(100svh-3.5rem)] items-end justify-end pb-24 lg:items-center lg:justify-between lg:pb-16">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.8, delay: 0.15, ease: [0.2, 0.8, 0.2, 1] }}
+          className="pointer-events-none absolute left-1/2 top-1/2 z-0 w-64 -translate-x-1/2 -translate-y-[58%] opacity-30 sm:w-80 lg:relative lg:left-auto lg:top-auto lg:z-10 lg:w-[38%] lg:max-w-md lg:translate-x-0 lg:translate-y-0 lg:pl-16 lg:opacity-100"
+        >
+          <GlitchMask />
+        </motion.div>
+
         <motion.div variants={container} initial="hidden" animate="show" className="w-full px-6 lg:w-1/2 lg:px-16 lg:pr-[8%]">
           <div className="relative max-w-xl lg:ml-auto">
             <motion.div variants={item} className="mb-4 flex items-center gap-2 text-[11px] text-bone/60">
@@ -88,10 +98,12 @@ export default function HeroAsciiOne() {
             <motion.h1
               id="hero-title"
               variants={item}
-              className="relative whitespace-nowrap font-display text-[length:clamp(4rem,8vw,7.5rem)] leading-[0.82] text-bone"
+              className="relative font-display text-[length:clamp(2.9rem,6.5vw,6.5rem)] leading-[0.86] text-bone"
             >
               <span aria-hidden="true" className="dither-half absolute -right-3 bottom-2 top-2 hidden w-1 text-bone/40 lg:block" />
               <ScrambleText text="HARSH RAJ" />
+              <br />
+              <ScrambleText text="SINGHANIA" />
             </motion.h1>
 
             {/* One mark per CVE, textured by severity */}
@@ -131,7 +143,7 @@ export default function HeroAsciiOne() {
       </div>
 
       {/* Status bar */}
-      <div className="absolute inset-x-0 bottom-0 z-20 border-t border-bone/20 bg-black/50 backdrop-blur-sm">
+      <div className="absolute inset-x-0 bottom-0 z-20 border-t border-bone/20 bg-void/60 backdrop-blur-sm">
         <div className="mx-auto flex max-w-[88rem] items-center justify-between px-4 py-2.5 text-[9px] text-bone/50 lg:px-8 lg:text-[10px]">
           <div className="flex items-center gap-3 lg:gap-6">
             <span className="hidden lg:inline">SYSTEM.ACTIVE</span>

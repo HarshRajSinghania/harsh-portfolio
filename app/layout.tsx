@@ -19,13 +19,13 @@ const vt = VT323({
 });
 
 const description =
-  "Harsh Raj finds memory-corruption and access-control bugs in open-source software. 11 CVEs across C, C++, Perl, PHP, Rust and Python.";
+  "Harsh Raj Singhania finds memory-corruption and access-control bugs in open-source software. 11 CVEs across C, C++, Perl, PHP, Rust and Python.";
 
 export const metadata: Metadata = {
-  title: "Harsh Raj, vulnerability researcher",
+  title: "Harsh Raj Singhania, vulnerability researcher",
   description,
-  authors: [{ name: "Harsh Raj" }],
-  openGraph: { title: "Harsh Raj, vulnerability researcher", description, type: "website" },
+  authors: [{ name: "Harsh Raj Singhania" }],
+  openGraph: { title: "Harsh Raj Singhania, vulnerability researcher", description, type: "website" },
 };
 
 export const viewport: Viewport = {

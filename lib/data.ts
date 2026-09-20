@@ -55,7 +55,7 @@ export const writeups = {
 };
 
 export const profile = {
-  name: "Harsh Raj",
+  name: "Harsh Raj Singhania",
   email: "raj.harshraut@gmail.com",
   cv: "/harsh-raj-cv.pdf",
   github: "https://github.com/HarshRajSinghania",

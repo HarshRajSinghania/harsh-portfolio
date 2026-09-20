@@ -1,10 +1,10 @@
 @import "tailwindcss";
 
 :root {
-  --void: #000000;
-  --bone: #ece9e2;
-  --ash: #8c8a84;
-  --phosphor: #ffb000;
+  --void: #030a06;
+  --bone: #b6f2c4;
+  --ash: #5f8f6f;
+  --phosphor: #22ff88;
 
   /* shadcn/ui tokens mapped onto the palette, so anything added with the CLI matches */
   --background: var(--void);
@@ -68,7 +68,11 @@
     scroll-padding-top: 4rem;
   }
   body {
-    background: var(--void);
+    background:
+      radial-gradient(120% 80% at 50% -10%, rgba(34, 255, 136, 0.10), transparent 60%),
+      radial-gradient(90% 60% at 85% 110%, rgba(34, 255, 136, 0.06), transparent 55%),
+      var(--void);
+    background-attachment: fixed;
     color: var(--bone);
     font-feature-settings: "zero" 1;
   }
@@ -124,10 +128,10 @@
     display: inline-block;
     height: 0.9em;
     vertical-align: -0.12em;
-    background: rgb(236 233 226 / 0.8);
+    background: rgb(95 143 111 / 0.85);
   }
   .scanlines {
-    background: repeating-linear-gradient(to bottom, rgb(236 233 226 / 0.022) 0 1px, transparent 1px 3px);
+    background: repeating-linear-gradient(to bottom, rgb(34 255 136 / 0.03) 0 1px, transparent 1px 3px);
   }
   .meter-bar {
     transform-origin: bottom;
@@ -143,4 +147,51 @@
   50% {
     transform: scaleY(1);
   }
+}
+
+
+/* ---- glitch mask + site-wide motion ---- */
+@keyframes flicker {
+  0%, 100% { opacity: 1; }
+  8% { opacity: 0.7; }
+  9% { opacity: 1; }
+  40% { opacity: 0.94; }
+  41% { opacity: 0.6; }
+  42% { opacity: 1; }
+  72% { opacity: 0.86; }
+  73% { opacity: 1; }
+}
+@keyframes glitch-x {
+  0%, 100% { transform: translate(0, 0); }
+  20% { transform: translate(-2px, 1px); }
+  40% { transform: translate(2px, -1px); }
+  60% { transform: translate(-1px, -1px); }
+  80% { transform: translate(1px, 1px); }
+}
+@keyframes maskscan {
+  0% { transform: translateY(-8%); opacity: 0; }
+  10% { opacity: 0.9; }
+  90% { opacity: 0.9; }
+  100% { transform: translateY(108%); opacity: 0; }
+}
+@keyframes breathe {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.015); }
+}
+@keyframes hue {
+  0%, 100% { filter: drop-shadow(0 0 10px rgba(34,255,136,0.5)); }
+  50% { filter: drop-shadow(0 0 22px rgba(34,255,136,0.85)); }
+}
+
+@layer utilities {
+  .mask-breathe { animation: breathe 6s ease-in-out infinite, hue 4s ease-in-out infinite; }
+  .mask-flicker { animation: flicker 5s steps(1, end) infinite; }
+  .mask-scan { animation: maskscan 3.6s linear infinite; }
+  .glitch-layer { animation: glitch-x 2.2s steps(2, end) infinite; mix-blend-mode: screen; }
+  .glitch-r { color: #ff2e6a; }
+  .glitch-b { color: #2ee8ff; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mask-breathe, .mask-flicker, .mask-scan, .glitch-layer { animation: none !important; }
 }
