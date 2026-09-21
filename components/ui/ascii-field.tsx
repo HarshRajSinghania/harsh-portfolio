@@ -7,12 +7,14 @@ import { cn } from "@/lib/utils";
  * Full-bleed ASCII scene behind the hero.
  *  - Background: a wall of hex bytes (process memory) whose brightness drifts,
  *    with the occasional random bit flip.
- *  - Foreground: a spinning torus lit with the luminance ramp from donut.c.
+ *  - Foreground: an ASCII hacker skull-mask, drawn straight into the character
+ *    grid with the donut.c luminance ramp. It wobbles, flickers, gets swept by a
+ *    scanline and torn by periodic glitch bursts. Eyes, nose and teeth are cut
+ *    out so the dark memory shows through them.
  *  - Pointer: moving over the field overwrites nearby bytes with 0x41 ("A"),
  *    the classic overflow payload, shown in amber until it settles.
- * Rows are drawn as whole strings per brightness bucket (a few hundred fillText
- * calls per frame instead of thousands). Pauses off-screen and in hidden tabs,
- * and draws a single still frame when the visitor prefers reduced motion.
+ * Rows are drawn as whole strings per brightness bucket. Pauses off-screen and
+ * in hidden tabs, and draws a single still frame under reduced motion.
  */
 
 const LUMINANCE = ".,-~:;=!*#$@";
@@ -20,41 +22,21 @@ const HEX = "0123456789abcdef";
 const LUM_CODES = Array.from(LUMINANCE, (c) => c.charCodeAt(0));
 const HEX_CODES = Array.from(HEX, (c) => c.charCodeAt(0));
 
-const BONE = "236,233,226";
+const BONE = "182,242,196"; // phosphor-tinted bone, matches the green palette
 const AMBER = "255,176,0";
-// Buckets: 0-2 memory by brightness, 3-6 torus by luminance, 7-8 overwritten bytes.
+// Buckets: 0-2 memory by brightness, 3-6 mask by luminance, 7-8 overwritten bytes.
 const STYLES = [
   `rgba(${BONE},0.07)`,
   `rgba(${BONE},0.13)`,
   `rgba(${BONE},0.22)`,
-  `rgba(${BONE},0.34)`,
-  `rgba(${BONE},0.55)`,
-  `rgba(${BONE},0.78)`,
+  `rgba(${BONE},0.40)`,
+  `rgba(${BONE},0.62)`,
+  `rgba(${BONE},0.85)`,
   `rgba(${BONE},1)`,
   `rgba(${AMBER},1)`,
   `rgba(${AMBER},0.5)`,
 ];
 const BUCKETS = STYLES.length;
-
-const R1 = 1;
-const R2 = 2;
-const K2 = 5;
-const THETA_STEPS = 96;
-const PHI_STEPS = 300;
-const COS_T = new Float32Array(THETA_STEPS);
-const SIN_T = new Float32Array(THETA_STEPS);
-const COS_P = new Float32Array(PHI_STEPS);
-const SIN_P = new Float32Array(PHI_STEPS);
-for (let i = 0; i < THETA_STEPS; i++) {
-  const a = (i / THETA_STEPS) * Math.PI * 2;
-  COS_T[i] = Math.cos(a);
-  SIN_T[i] = Math.sin(a);
-}
-for (let j = 0; j < PHI_STEPS; j++) {
-  const a = (j / PHI_STEPS) * Math.PI * 2;
-  COS_P[j] = Math.cos(a);
-  SIN_P[j] = Math.sin(a);
-}
 
 const INTRO_MS = 1400;
 const OVERWRITE_MS = 1400;
@@ -65,6 +47,12 @@ type AsciiFieldProps = {
   className?: string;
   onFrame?: (frame: number) => void;
 };
+
+// A small pseudo-random hash, stable per integer.
+function hash(n: number) {
+  const s = Math.sin(n * 127.1) * 43758.5453;
+  return s - Math.floor(s);
+}
 
 export function AsciiField({ className, onFrame }: AsciiFieldProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -92,7 +80,6 @@ export function AsciiField({ className, onFrame }: AsciiFieldProps) {
     let bytes = new Uint8Array(0);
     let level = new Uint8Array(0);
     let hit = new Float32Array(0);
-    let zbuf = new Float32Array(0);
     let lum = new Int8Array(0);
     let reveal = new Float32Array(0);
     let codes: Uint16Array[] = [];
@@ -102,6 +89,13 @@ export function AsciiField({ className, onFrame }: AsciiFieldProps) {
     let frame = 0;
     let inView = true;
     let disposed = false;
+
+    // Glitch-burst state.
+    let glitchUntil = 0;
+    let glitchNext = 900;
+    let glitchRow0 = 0;
+    let glitchRow1 = 0;
+    let glitchOff = 0;
 
     const resize = () => {
       const rect = canvas.getBoundingClientRect();
@@ -128,14 +122,92 @@ export function AsciiField({ className, onFrame }: AsciiFieldProps) {
       for (let i = 0; i < nBytes; i++) bytes[i] = (Math.random() * 256) | 0;
       level = new Uint8Array(nBytes);
       hit = new Float32Array(nBytes).fill(-1e9);
-      zbuf = new Float32Array(cells);
       lum = new Int8Array(cells);
       reveal = new Float32Array(cells);
-      for (let i = 0; i < cells; i++) {
-        const s = Math.sin(i * 12.9898) * 43758.5453;
-        reveal[i] = s - Math.floor(s);
-      }
+      for (let i = 0; i < cells; i++) reveal[i] = hash(i);
       codes = Array.from({ length: BUCKETS }, () => new Uint16Array(cols));
+    };
+
+    // Fill lum[] with the skull-mask luminance (0..11), -1 elsewhere.
+    const stampMask = (t: number) => {
+      lum.fill(-1);
+      const ts = t * 0.001;
+      const wide = width >= 1024;
+
+      const halfH = Math.min(height * 0.4, wide ? width * 0.3 : width * 0.62);
+      const halfW = halfH * 0.82;
+      const mx = wide ? width * 0.31 : width * 0.5;
+      const my = wide ? height * 0.52 : height * 0.34;
+
+      // wobble + breathe make it feel alive without a full spin
+      const ang = 0.06 * Math.sin(ts * 0.7);
+      const cA = Math.cos(ang);
+      const sA = Math.sin(ang);
+      const br = 1 + 0.025 * Math.sin(ts * 1.1);
+      const lx = Math.cos(ts * 0.6);
+      const ly = 0.35 + 0.5 * Math.sin(ts * 0.6);
+      const sv = 1 - 2 * ((ts * 0.18) % 1); // scanline height in [-1,1]
+      const glitching = t < glitchUntil;
+
+      const cMin = Math.max(0, Math.floor((mx - halfW) / cellW));
+      const cMax = Math.min(cols - 1, Math.ceil((mx + halfW) / cellW));
+      const rMin = Math.max(0, Math.floor((my - halfH) / cellH));
+      const rMax = Math.min(rows - 1, Math.ceil((my + halfH) / cellH));
+
+      for (let r = rMin; r <= rMax; r++) {
+        const cy = r * cellH + cellH * 0.5;
+        const rowOff = glitching && r >= glitchRow0 && r <= glitchRow1 ? glitchOff : 0;
+        const flick = 0.88 + 0.12 * Math.sin(ts * 11 + r * 0.7);
+        for (let c = cMin; c <= cMax; c++) {
+          const cx = c * cellW + cellW * 0.5;
+          let u = (cx - mx) / halfW + rowOff;
+          let v = -(cy - my) / halfH;
+          // rotate then breathe
+          const ru = (u * cA + v * sA) / br;
+          const rv = (-u * sA + v * cA) / br;
+          u = ru;
+          v = rv;
+
+          const he = (u / 0.86) ** 2 + ((v - 0.16) / 0.74) ** 2;
+          const je = (u / 0.62) ** 2 + ((v + 0.52) / 0.52) ** 2;
+          const inHead = he <= 1;
+          const inJaw = je <= 1;
+          if (!inHead && !inJaw) continue;
+          const d = Math.min(inHead ? 1 - he : 9, inJaw ? 1 - je : 9); // ~0 at rim
+
+          // eyes (slanted, hollow)
+          const elu = u + 0.34;
+          const elv = v - 0.3;
+          const eL = ((elu * 0.877 + elv * 0.479) / 0.27) ** 2 + ((-elu * 0.479 + elv * 0.877) / 0.2) ** 2;
+          const eru = u - 0.34;
+          const erv = v - 0.3;
+          const eR = ((eru * 0.877 - erv * 0.479) / 0.27) ** 2 + ((eru * 0.479 + erv * 0.877) / 0.2) ** 2;
+          const inEye = eL <= 1 || eR <= 1;
+
+          // nose: triangle pointing up
+          const noseW = 0.14 * ((0.14 - v) / 0.32);
+          const inNose = v > -0.18 && v < 0.14 && Math.abs(u) < noseW;
+
+          // teeth: gaps between vertical bars + a mid gum line
+          let gap = false;
+          if (inJaw && v < -0.32 && v > -0.9) {
+            const ff = u * 3.0;
+            const frac = ff - Math.floor(ff);
+            gap = frac < 0.16 || frac > 0.84 || Math.abs(v + 0.58) < 0.028;
+          }
+
+          if (inEye || inNose || gap) continue; // hollow features
+
+          const shade = 0.5 + 0.42 * (u * lx * 0.55 + v * ly * 0.55);
+          const rim = d < 0.13 ? 0.55 : 0;
+          const scan = Math.abs(v - sv) < 0.05 ? 0.6 : 0;
+          let L = (shade + rim + scan) * flick;
+          if (glitching && r >= glitchRow0 && r <= glitchRow1) L += 0.15;
+          if (L < 0) L = 0;
+          else if (L > 1) L = 1;
+          lum[r * cols + c] = (L * 11) | 0;
+        }
+      }
     };
 
     const draw = (now: number) => {
@@ -145,12 +217,21 @@ export function AsciiField({ className, onFrame }: AsciiFieldProps) {
       const wide = width >= 1024;
       const ts = t * 0.001;
 
+      // schedule glitch bursts
+      if (!reduce && t > glitchNext) {
+        glitchUntil = t + 90 + Math.random() * 160;
+        glitchNext = t + 1800 + Math.random() * 4200;
+        glitchRow0 = (rows * Math.random()) | 0;
+        glitchRow1 = Math.min(rows - 1, glitchRow0 + 1 + ((Math.random() * 5) | 0));
+        glitchOff = (Math.random() - 0.5) * 0.5;
+      }
+
       // Memory brightness: three slow interfering waves.
       for (let r = 0; r < rows; r++) {
         for (let b = 0; b < bytesPerRow; b++) {
           const x = b * 3;
-          const v = Math.sin(x * 0.045 + ts * 0.7) + Math.sin(r * 0.21 - ts * 0.5) + Math.sin((x * 0.5 + r) * 0.07 + ts * 0.35);
-          level[r * bytesPerRow + b] = v > 1.6 ? 2 : v > 0.6 ? 1 : 0;
+          const val = Math.sin(x * 0.045 + ts * 0.7) + Math.sin(r * 0.21 - ts * 0.5) + Math.sin((x * 0.5 + r) * 0.07 + ts * 0.35);
+          level[r * bytesPerRow + b] = val > 1.6 ? 2 : val > 0.6 ? 1 : 0;
         }
       }
       if (!reduce) {
@@ -158,46 +239,10 @@ export function AsciiField({ className, onFrame }: AsciiFieldProps) {
         for (let i = 0; i < flips; i++) bytes[(Math.random() * bytes.length) | 0] = (Math.random() * 256) | 0;
       }
 
-      // Torus, after donut.c: rotate, project, keep the nearest point per cell.
-      zbuf.fill(0);
-      lum.fill(-1);
-      const A = 1 + t * 0.00045;
-      const B = 0.4 + t * 0.00022;
-      const cA = Math.cos(A);
-      const sA = Math.sin(A);
-      const cB = Math.cos(B);
-      const sB = Math.sin(B);
-      const aspect = cellW / cellH;
-      const ox = wide ? cols * 0.28 : cols * 0.5;
-      const oy = wide ? rows * 0.5 : rows * 0.3;
-      const diameter = Math.min(wide ? cols * 0.44 : cols * 0.86, (wide ? rows * 0.76 : rows * 0.42) / aspect);
-      const k1x = (diameter * 0.92 * K2) / (2 * (R1 + R2));
-      const k1y = k1x * aspect;
-
-      for (let i = 0; i < THETA_STEPS; i++) {
-        const ct = COS_T[i];
-        const st = SIN_T[i];
-        const circleX = R2 + R1 * ct;
-        const circleY = R1 * st;
-        for (let j = 0; j < PHI_STEPS; j++) {
-          const cp = COS_P[j];
-          const sp = SIN_P[j];
-          const x = circleX * (cB * cp + sA * sB * sp) - circleY * cA * sB;
-          const y = circleX * (sB * cp - sA * cB * sp) + circleY * cA * cB;
-          const ooz = 1 / (K2 + cA * circleX * sp + circleY * sA);
-          const xp = Math.floor(ox + k1x * ooz * x);
-          const yp = Math.floor(oy - k1y * ooz * y);
-          if (xp < 0 || xp >= cols || yp < 0 || yp >= rows) continue;
-          const idx = yp * cols + xp;
-          if (ooz <= zbuf[idx]) continue;
-          zbuf[idx] = ooz;
-          const L = cp * ct * sB - cA * ct * sp - sA * st + cB * (cA * st - ct * sA * sp);
-          lum[idx] = L > 0 ? Math.min(11, (L * 8) | 0) : 0;
-        }
-      }
+      stampMask(t);
 
       ctx.clearRect(0, 0, width, height);
-      const torusAlpha = wide ? 1 : 0.55;
+      const maskAlpha = wide ? 1 : 0.6;
       for (let r = 0; r < rows; r++) {
         used.fill(0);
         for (let b = 0; b < BUCKETS; b++) codes[b].fill(32);
@@ -207,9 +252,9 @@ export function AsciiField({ className, onFrame }: AsciiFieldProps) {
           if (reveal[i] > progress) continue;
           const l = lum[i];
           if (l >= 0) {
-            const torusBucket = 3 + ((l / 3) | 0);
-            codes[torusBucket][c] = LUM_CODES[l];
-            used[torusBucket] = 1;
+            const maskBucket = 3 + ((l / 3) | 0);
+            codes[maskBucket][c] = LUM_CODES[l];
+            used[maskBucket] = 1;
             continue;
           }
           const pos = c % 3;
@@ -228,7 +273,7 @@ export function AsciiField({ className, onFrame }: AsciiFieldProps) {
         const y = r * cellH + 2;
         for (let b = 0; b < BUCKETS; b++) {
           if (!used[b]) continue;
-          ctx.globalAlpha = b >= 3 && b <= 6 ? torusAlpha : 1;
+          ctx.globalAlpha = b >= 3 && b <= 6 ? maskAlpha : 1;
           ctx.fillStyle = STYLES[b];
           ctx.fillText(String.fromCharCode(...codes[b]), 0, y);
         }
@@ -297,7 +342,6 @@ export function AsciiField({ className, onFrame }: AsciiFieldProps) {
     io.observe(canvas);
     document.addEventListener("visibilitychange", onVisibility);
     window.addEventListener("pointermove", onPointer, { passive: true });
-    // Re-measure once the web font is in, so glyph cells line up exactly.
     document.fonts?.ready.then(() => {
       if (disposed) return;
       resize();

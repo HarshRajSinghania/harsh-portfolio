@@ -4,7 +4,6 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { motion, type Variants } from "framer-motion";
 import { ArrowDown, Download } from "lucide-react";
 import { AsciiField } from "@/components/ui/ascii-field";
-import { GlitchMask } from "@/components/ui/glitch-mask";
 import { ScrambleText } from "@/components/ui/scramble-text";
 import { cves, profile, severityCounts } from "@/lib/data";
 import { ditherClass } from "@/lib/severity";
@@ -77,16 +76,7 @@ export default function HeroAsciiOne() {
       <span aria-hidden="true" className="absolute bottom-10 left-0 z-20 size-8 border-b-2 border-l-2 border-bone/30 lg:size-12" />
       <span aria-hidden="true" className="absolute bottom-10 right-0 z-20 size-8 border-b-2 border-r-2 border-bone/30 lg:size-12" />
 
-      <div className="relative z-10 flex min-h-[calc(100svh-3.5rem)] items-end justify-end pb-24 lg:items-center lg:justify-between lg:pb-16">
-        <motion.div
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.8, delay: 0.15, ease: [0.2, 0.8, 0.2, 1] }}
-          className="pointer-events-none absolute left-1/2 top-1/2 z-0 w-64 -translate-x-1/2 -translate-y-[58%] opacity-30 sm:w-80 lg:relative lg:left-auto lg:top-auto lg:z-10 lg:w-[38%] lg:max-w-md lg:translate-x-0 lg:translate-y-0 lg:pl-16 lg:opacity-100"
-        >
-          <GlitchMask />
-        </motion.div>
-
+      <div className="relative z-10 flex min-h-[calc(100svh-3.5rem)] items-end justify-end pb-24 lg:items-center lg:pb-16">
         <motion.div variants={container} initial="hidden" animate="show" className="w-full px-6 lg:w-1/2 lg:px-16 lg:pr-[8%]">
           <div className="relative max-w-xl lg:ml-auto">
             <motion.div variants={item} className="mb-4 flex items-center gap-2 text-[11px] text-bone/60">
